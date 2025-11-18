@@ -7,7 +7,7 @@ _2025년 새싹 해커톤(SeSAC Hackathon) – CODE:ME 팀 기획 & 기술 문�
 
 - **해커톤명**: 2025년 새싹 해커톤(SeSAC Hackathon)  
 - **팀명**: CODE:ME  
-- **팀원**: asdf, asdf, sdfa, sfad  
+- **팀원**: 홍원택, 유보영, 유단영, 한승범, 박무걸  
 - **서비스 명칭**: **HEYME**  
 - **한줄 소개**:  
   > _“Second Me” — 내 클라우드 문서를 이해하고 대신 답해주는 퍼스널 AI 동반자_
@@ -194,7 +194,8 @@ _2025년 새싹 해커톤(SeSAC Hackathon) – CODE:ME 팀 기획 & 기술 문�
 - **벡터 스토어**: Azure AI Search (벡터 인덱스)
 - **백엔드**: FastAPI (Python)
 - **프론트엔드**: React / Next.js (또는 단일 HTML + JS 페이지)
-- **DB**: RDB (예: PostgreSQL) – User, FolderDataset, ChatbotLink 관리
+- **DB**: RDB (예: PostgreSQL) – User, FolderDataset, ChatbotLink, ChatLog 관리
+- **분석/Dashboard**: Power BI 또는 Superset 등 (ChatLog 기반)
 
 ### 6-3. 서비스 동작 방식 요약
 
@@ -203,7 +204,8 @@ _2025년 새싹 해커톤(SeSAC Hackathon) – CODE:ME 팀 기획 & 기술 문�
 3. Azure AI Search에 벡터 인덱싱  
 4. 챗봇 UI에서 질문  
 5. 벡터 검색 + LLM으로 답변 생성  
-6. 출처 인용 + 후속 질문 제안
+6. 출처 인용 + 후속 질문 제안  
+7. 모든 대화 로그를 저장 → “어떤 질문이 많이 나오는지” 대시보드로 제공
 
 ### 6-4. 차별점 / 창의성
 
@@ -213,6 +215,9 @@ _2025년 새싹 해커톤(SeSAC Hackathon) – CODE:ME 팀 기획 & 기술 문�
 - B2B뿐 아니라 **B2C로 확장** 가능한 구조
 - 저코드 도구(n8n)를 활용하여
   - 비개발자도 워크플로우를 확장/변경 가능
+- **질문 분석 대시보드** 제공:
+  - 개인/팀이 “어떤 주제로 가장 많이 묻고 있는지”를 시각화
+  - 규정/매뉴얼 개선 포인트 도출
 
 ### 6-5. 구현 가능성
 
@@ -227,36 +232,40 @@ _2025년 새싹 해커톤(SeSAC Hackathon) – CODE:ME 팀 기획 & 기술 문�
 ```mermaid
 flowchart LR
     subgraph User
-        U1[웹/모바일 브라우저<br/>HEYME Chat UI]
+        U1["웹/모바일 브라우저 HEYME Chat UI"]
     end
 
     subgraph Cloud["Cloud Storage / Mail"]
-        GDrive[Google Drive]
-        OneDrive[OneDrive]
-        Gmail[Gmail API]
-        Outlook[Outlook API]
+        GDrive["Google Drive"]
+        OneDrive["OneDrive"]
+        Gmail["Gmail API"]
+        Outlook["Outlook API"]
     end
 
     subgraph n8n["n8n 워크플로우"]
-        N1[파일 변경 감지<br/>(Webhook/폴링)]
-        N2[문서 파싱<br/>(Unstructured)]
-        N3[전처리 & Chunking]
-        N4[Embedding 생성<br/>(Azure OpenAI)]
-        N5[벡터 인덱스 업서트<br/>(Azure AI Search)]
+        N1["파일 변경 감지 (Webhook/폴링)"]
+        N2["문서 파싱 (Unstructured)"]
+        N3["전처리 및 청킹 (Chunking)"]
+        N4["Embedding 생성 (Azure OpenAI)"]
+        N5["벡터 인덱스 Upsert (Azure AI Search)"]
     end
 
     subgraph Backend["Backend (FastAPI + DB)"]
-        API[REST API<br/>(/api/chat, /api/chatbot-meta)]
-        DB[(RDB<br/>User, FolderDataset, ChatbotLink)]
+        API["REST API (/api/chat, /api/chatbot-meta)"]
+        DB["RDB (User, FolderDataset, ChatbotLink, ChatLog)"]
     end
 
-    subgraph Vector["Azure AI Search (Vector Index)"]
-        VS[(벡터 인덱스)]
+    subgraph Vector["Azure AI Search"]
+        VS["벡터 인덱스"]
     end
 
     subgraph LLM["Azure OpenAI"]
-        ChatModel[ChatCompletion]
-        EmbModel[Embedding]
+        ChatModel["ChatCompletion"]
+        EmbModel["Embedding"]
+    end
+
+    subgraph Analytics["Analytics / Dashboard"]
+        BI["Power BI 또는 기타 BI 도구"]
     end
 
     U1 -->|질문 POST| API
@@ -270,3 +279,8 @@ flowchart LR
     EmbModel --> N5 --> VS
 
     API <---> DB
+    DB --> BI
+    BI --> U1
+
+    U1 -->|질문/응답 로그 저장| API
+    API -->|ChatLog 기록| DB
