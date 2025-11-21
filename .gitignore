@@ -1,0 +1,39 @@
+# ===== 파이썬/백엔드 공통 =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# IDE / 편집기
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS 별 쓰레기 파일
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+
+# ===== 환경변수 / 시크릿 =====
+.env
+.env.*
+
+# ===== 백엔드 빌드/캐시 =====
+backend/.mypy_cache/
+backend/.pytest_cache/
+backend/__pycache__/
+
+# ===== DB (Postgres docker 데이터) =====
+DB/data/
+
+# docker-compose에서 생성되는 기타 파일이 있으면 필요시 추가
+# 예: 볼륨 스냅샷, 임시 백업 등
