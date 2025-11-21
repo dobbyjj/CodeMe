@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: codeme-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: codeme
+      POSTGRES_PASSWORD: codeme_pw
+      POSTGRES_DB: codeme_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # 실제 데이터 저장
+      - ./data:/var/lib/postgresql/data
+      # 처음 기동할 때 실행할 스키마 SQL
+      - ./schema:/docker-entrypoint-initdb.d
