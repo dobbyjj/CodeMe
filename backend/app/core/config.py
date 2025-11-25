@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     google_token_url: str = "https://oauth2.googleapis.com/token"
     google_userinfo_url: str = "https://openidconnect.googleapis.com/v1/userinfo"
 
+    # Azure Blob Storage
+    azure_storage_connection_string: str = Field(default="", env="AZURE_STORAGE_CONNECTION_STRING")
+    azure_storage_account_url: str = Field(default="", env="AZURE_STORAGE_ACCOUNT_URL")
+    azure_storage_account_name: str = Field(default="", env="AZURE_STORAGE_ACCOUNT_NAME")
+    azure_storage_account_key: str = Field(default="", env="AZURE_STORAGE_ACCOUNT_KEY")
+    azure_blob_container: str = Field(default="user-docs", env="AZURE_BLOB_CONTAINER")
+
+    # Upload policy
+    max_upload_size_mb: int = Field(default=20, env="MAX_UPLOAD_SIZE_MB")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

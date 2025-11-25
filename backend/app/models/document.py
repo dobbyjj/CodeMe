@@ -7,7 +7,7 @@ from sqlalchemy import (
     DateTime,
     BigInteger,
     Text,
-    Enum,
+    Enum as SAEnum,
     Integer,
     ForeignKey,
 )
@@ -18,6 +18,7 @@ from app.core.db import Base
 
 
 class DocumentStatus(str, PyEnum):
+    # DB enum(document_status) 값과 일치하도록 소문자 사용
     UPLOADED = "uploaded"
     PROCESSING = "processing"
     PROCESSED = "processed"
@@ -42,10 +43,50 @@ class Document(Base):
     source = Column(String(50), nullable=False, default="upload")
 
     status = Column(
-        Enum(DocumentStatus, name="document_status"),
-        nullable=False,
-        default=DocumentStatus.UPLOADED,
-    )
+    SAEnum(
+        DocumentStatus,
+        name="document_status",
+        values_callable=lambda enum_cls: [e.value for e in enum_cls],  # ⭐ 핵심
+    ),
+    nullable=False,
+    default=DocumentStatus.UPLOADED,
+)
+    status = Column(
+    SAEnum(
+        DocumentStatus,
+        name="document_status",
+        values_callable=lambda enum_cls: [e.value for e in enum_cls],  # ⭐ 핵심
+    ),
+    nullable=False,
+    default=DocumentStatus.UPLOADED,
+)
+    status = Column(
+    SAEnum(
+        DocumentStatus,
+        name="document_status",
+        values_callable=lambda enum_cls: [e.value for e in enum_cls],  # ⭐ 핵심
+    ),
+    nullable=False,
+    default=DocumentStatus.UPLOADED,
+)
+    status = Column(
+    SAEnum(
+        DocumentStatus,
+        name="document_status",
+        values_callable=lambda enum_cls: [e.value for e in enum_cls],  # ⭐ 핵심
+    ),
+    nullable=False,
+    default=DocumentStatus.UPLOADED,
+)
+    status = Column(
+    SAEnum(
+        DocumentStatus,
+        name="document_status",
+        values_callable=lambda enum_cls: [e.value for e in enum_cls],  # ⭐ 핵심
+    ),
+    nullable=False,
+    default=DocumentStatus.UPLOADED,
+)
 
     chunk_count = Column(Integer, nullable=True, default=0)
 

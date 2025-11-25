@@ -9,3 +9,5 @@ pydantic-settings
 python-dotenv
 email-validator
 httpx
+azure-storage-blob
+python-multipart
