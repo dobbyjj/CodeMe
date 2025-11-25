@@ -6,7 +6,7 @@ from app.models.document import DocumentStatus
 
 
 class DocumentRead(BaseModel):
-    # ORM 객체(Document)를 그대로 넣어도 필드 매핑되도록
+    # ORM Document model serializer
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -17,16 +17,16 @@ class DocumentRead(BaseModel):
     size_bytes: int | None = None
     blob_path: str
     source: str
-    status: DocumentStatus  # 또는 str 로 바꾸고 싶으면 str
+    status: DocumentStatus
     chunk_count: int
     last_indexed_at: datetime | None = None
     error_message: str | None = None
-    created_at: datetime      # 🔹 여기를 str → datetime
-    updated_at: datetime      # 🔹 여기도 str → datetime
+    created_at: datetime
+    updated_at: datetime
 
 
 class DocumentIndexCallback(BaseModel):
     document_id: UUID = Field(..., description="documents.id (UUID)")
     status: DocumentStatus
-    chunk_count: int | None = Field(default=None, description="청킹 완료한 chunk 수")
-    error_message: str | None = Field(default=None, description="실패 시 에러 메시지")
+    chunk_count: int | None = Field(default=None, description="Number of processed chunks")
+    error_message: str | None = Field(default=None, description="Error message when indexing fails")
