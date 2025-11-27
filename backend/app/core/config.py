@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     # n8n callbacks
     fastapi_callback_url: Optional[str] = None
     n8n_callback_token: Optional[str] = None
+    n8n_index_webhook_url: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=[

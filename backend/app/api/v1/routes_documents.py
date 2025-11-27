@@ -21,6 +21,7 @@ from app.services.blob_storage import (
     get_blob_container_client,
     upload_blob,
 )
+from app.services.indexing import trigger_n8n_indexing
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -98,6 +99,13 @@ async def upload_document(
         raise
 
     db.refresh(document)
+    # 업로드 후 n8n 인덱싱 트리거 (에러는 로깅 후 무시)
+    try:
+        doc_out = DocumentRead.model_validate(document)
+        await trigger_n8n_indexing([doc_out])
+    except Exception:
+        pass
+
     return document
 
 
