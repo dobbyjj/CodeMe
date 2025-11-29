@@ -44,6 +44,18 @@ const UploadPage: React.FC = () => {
     fetchDocs();
   }, []);
 
+  // 간단한 폴링: 처리 중 문서가 있을 때 주기적으로 목록을 갱신해 콜백 상태를 반영
+  useEffect(() => {
+    const hasProcessing = docs.some(d => d.status === 'processing');
+    if (!hasProcessing) return;
+
+    const intervalId = window.setInterval(() => {
+      fetchDocs();
+    }, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, [docs]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!ensureToken()) return;
 
@@ -222,11 +234,22 @@ const UploadPage: React.FC = () => {
                             onClick={() => handleIndex(doc.id)}
                             disabled={
                               indexingId === doc.id ||
-                              doc.status === 'processing'
+                              doc.status === 'processing' ||
+                              doc.status === 'processed'
                             }
-                            className="flex items-center gap-1 px-2 py-1.5 rounded-md text-gray-600 border border-purple-200 hover:bg-purple-50 hover:text-purple-700 text-xs disabled:opacity-50"
+                            className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs border transition-colors ${
+                              doc.status === 'processed'
+                                ? 'bg-green-100 text-green-700 border-green-200 cursor-default'
+                                : doc.status === 'processing' || indexingId === doc.id
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200 cursor-wait'
+                                  : 'text-gray-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700'
+                            } disabled:opacity-60`}
                           >
-                            {indexingId === doc.id ? '인덱싱...' : '인덱싱'}
+                            {doc.status === 'processed'
+                              ? '인덱싱 완료'
+                              : doc.status === 'processing' || indexingId === doc.id
+                                ? '인덱싱 중...'
+                                : '인덱싱'}
                           </button>
                           <button
                             onClick={() => handleDelete(doc.id)}
