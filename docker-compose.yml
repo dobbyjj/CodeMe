@@ -13,6 +13,8 @@ services:
       - ./DB/init/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     networks:
       - codeme-net
+    ports:
+      - "5432:5432"
 
   backend:
     build:
