@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_db
 from app.api.v1.search_vector import embed_query, vector_search
-from app.api.v1.chat_rag import call_chat_model
+from app.api.v1.chat_rag import call_chat_model, _looks_no_answer
+from app.core.question_normalizer import normalize_question_semantic
 from app.models.link import Link
 from app.models.qa_log import QALog
 from app.models.document_group import DocumentGroup
@@ -49,21 +50,33 @@ async def ask_via_link(
         top_k=5,
     )
 
+    status_str = "SUCCESS"
+    if len(search_result.hits) == 0:
+        status_str = "NO_ANSWER"
+
     answer = await call_chat_model(payload.question, search_result.hits, persona_prompt)
+    if status_str == "SUCCESS" and _looks_no_answer(answer):
+        status_str = "NO_ANSWER"
 
     # 링크 메타데이터 업데이트
     link.access_count += 1
     link.last_accessed_at = datetime.now(timezone.utc)
 
     # QA 로그 적재 (토큰/latency는 미수집)
-    qa_log = QALog(
-        user_id=link.user_id,
-        document_id=link.document_id,
-        link_id=link.id,
-        question=payload.question,
-        answer=answer,
-    )
-    db.add(qa_log)
-    db.commit()
+    try:
+        normalized = await normalize_question_semantic(payload.question)
+        qa_log = QALog(
+            user_id=link.user_id,
+            document_id=link.document_id,
+            link_id=link.id,
+            question=payload.question,
+            answer=answer,
+            status=status_str,
+            normalized_question=normalized,
+        )
+        db.add(qa_log)
+        db.commit()
+    except Exception:
+        db.rollback()
 
     return ChatResponse(answer=answer)

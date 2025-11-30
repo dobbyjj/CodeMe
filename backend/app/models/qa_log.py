@@ -26,5 +26,7 @@ class QALog(Base):
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
     latency_ms = Column(Integer, nullable=True)
+    status = Column(String(20), nullable=True, default="SUCCESS")
+    normalized_question = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -74,13 +74,45 @@ export interface DocumentGroup {
 }
 
 // 3. Dashboard Data Transfer Objects (DTO)
-export interface DashboardStats {
-    totalChats: number;
-    dailyStats: { day: string; messageCount: number }[];
-    topKeywords: { keyword: string; count: number }[];
-    recentChats: QALog[];
-    failures: { questionKey: string; failCount: number }[];
-    documents: DocumentEntity[];
+export interface DashboardKeyword {
+  keyword: string;
+  count: number;
+}
+
+export interface DashboardRecentQuestion {
+  id: string;
+  question: string;
+  created_at: string | null;
+}
+
+export interface DashboardDocumentSummary {
+  id: string;
+  title: string;
+  original_file_name: string;
+  mime_type: string | null;
+  status: string;
+  created_at: string | null;
+  group_id: string | null;
+}
+
+export interface DashboardDailyCount {
+  date: string;
+  count: number;
+}
+
+export interface DashboardFailedQuestion {
+  normalized_question: string;
+  sample_question: string;
+  fail_count: number;
+  last_asked_at: string | null;
+}
+
+export interface DashboardOverview {
+  keywords: DashboardKeyword[];
+  recent_questions: DashboardRecentQuestion[];
+  recent_documents: DashboardDocumentSummary[];
+  daily_counts: DashboardDailyCount[];
+  failed_questions: DashboardFailedQuestion[];
 }
 
 export interface User {

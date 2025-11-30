@@ -58,7 +58,9 @@ def create_link(
         .first()
     )
     if existing:
-        not_expired = existing.expires_at is None or existing.expires_at > datetime.utcnow()
+        now_utc = datetime.utcnow().replace(tzinfo=None)
+        expires_at = existing.expires_at
+        not_expired = expires_at is None or expires_at.replace(tzinfo=None) > now_utc
         if not_expired:
             db.refresh(existing)
             return existing

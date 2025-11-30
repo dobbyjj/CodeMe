@@ -16,10 +16,12 @@ from app.api.v1.search_vector import (
     SearchHit,
 )
 from app.core.config import settings
+from app.core.question_normalizer import normalize_question_semantic
 from app.models.qa_log import QALog
 from app.models.user import User
 from app.models.document_group import DocumentGroup
 from sqlalchemy.orm import Session
+import re
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
@@ -59,6 +61,29 @@ class ChatLogRead(BaseModel):
 
 # Ensure Pydantic builds type adapters before FastAPI uses them
 ChatLogRead.model_rebuild()
+
+
+def normalize_question(text: str) -> str:
+    s = text.lower().strip()
+    s = re.sub(r"[^\w\s가-힣]", "", s)
+    s = re.sub(r"\s+", " ", s)
+    return s
+
+
+def _looks_no_answer(answer: str) -> bool:
+    """Heuristic to flag model replies that indicate no answer."""
+    low = answer.lower()
+    keywords = [
+        "정보가 없습니다",
+        "알 수 없습니다",
+        "잘 모르",
+        "관련 정보가 없",
+        "답변을 생성하지",
+        "확인할 수 없",
+        "찾을 수 없",
+        "없습니다.",  # generic
+    ]
+    return any(k in low for k in keywords)
 
 
 async def call_chat_model(question: str, hits: List[SearchHit], persona_prompt: str | None = None) -> str:
@@ -149,7 +174,13 @@ async def chat_with_rag(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
         persona_prompt = group.persona_prompt
 
+    status_str = "SUCCESS"
+    if len(search_result.hits) == 0:
+        status_str = "NO_ANSWER"
+
     answer = await call_chat_model(payload.question, search_result.hits, persona_prompt)
+    if status_str == "SUCCESS" and _looks_no_answer(answer):
+        status_str = "NO_ANSWER"
 
     sources: List[ChatSource] = [
         ChatSource(
@@ -164,12 +195,15 @@ async def chat_with_rag(
 
     # QA 로그 저장 (best-effort)
     try:
+        normalized = await normalize_question_semantic(payload.question)
         qa_log = QALog(
             user_id=current_user.id,
             document_id=None,
             link_id=None,
             question=payload.question,
             answer=answer,
+            status=status_str,
+            normalized_question=normalized,
         )
         db.add(qa_log)
         db.commit()

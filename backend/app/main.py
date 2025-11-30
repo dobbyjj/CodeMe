@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.api.v1 import routes_health, routes_auth, routes_documents, routes_links, routes_chat
 from app.api.v1 import chat_rag, search_vector
 from app.api.v1 import routes_document_groups
+from app.api.v1.routes_dashboard import router as dashboard_router
 
 
 app = FastAPI(title="CODEME Backend", version="0.1.0")
@@ -28,6 +29,7 @@ app.include_router(routes_links.router, prefix="/api/v1")
 app.include_router(routes_chat.router, prefix="/api/v1")
 app.include_router(search_vector.router)
 app.include_router(chat_rag.router)
+app.include_router(dashboard_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
