@@ -87,7 +87,7 @@ const ShareChatPage: React.FC = () => {
       setIsLoading(true);
       const link = await linkService.createForGroup(selectedGroupId);
       const base = window.location.origin;
-      const url = `${base}/#/c/${link.id}`;
+      const url = `${base}/c/${link.id}`;
       setShareUrl(url);
       await navigator.clipboard.writeText(url).catch(() => {});
       alert(`공유 링크가 생성되었습니다.\n\n${url}\n\n클립보드에도 복사했습니다.`);

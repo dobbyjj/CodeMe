@@ -79,6 +79,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout();
     setUser(null);
+    // Clear any in-memory chat state via reload to ensure messages disappear immediately
+    window.location.reload();
   };
 
   return (

@@ -5,9 +5,10 @@ from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, field_validator
+from datetime import datetime
 
-from app.api.v1.deps import get_current_user
+from app.api.v1.deps import get_current_user, get_db
 from app.api.v1.search_vector import (
     embed_query,
     vector_search,
@@ -15,7 +16,9 @@ from app.api.v1.search_vector import (
     SearchHit,
 )
 from app.core.config import settings
+from app.models.qa_log import QALog
 from app.models.user import User
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
@@ -38,6 +41,23 @@ class ChatResponse(BaseModel):
     question: str
     answer: str
     sources: List[ChatSource]
+
+
+class ChatLogRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+    id: UUID
+    question: str
+    answer: str
+    created_at: datetime | None = None
+
+    @field_validator("id", mode="before")
+    def stringify_uuid(cls, v):
+        return str(v)
+
+
+# Ensure Pydantic builds type adapters before FastAPI uses them
+ChatLogRead.model_rebuild()
 
 
 async def call_chat_model(question: str, hits: List[SearchHit]) -> str:
@@ -105,6 +125,7 @@ async def call_chat_model(question: str, hits: List[SearchHit]) -> str:
 async def chat_with_rag(
     payload: ChatRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """RAG chat: embed query, vector search, call chat model."""
     query_vec = await embed_query(payload.question)
@@ -130,4 +151,41 @@ async def chat_with_rag(
         for h in search_result.hits
     ]
 
+    # QA 로그 저장 (best-effort)
+    try:
+        qa_log = QALog(
+            user_id=current_user.id,
+            document_id=None,
+            link_id=None,
+            question=payload.question,
+            answer=answer,
+        )
+        db.add(qa_log)
+        db.commit()
+    except Exception:
+        db.rollback()
+
     return ChatResponse(question=payload.question, answer=answer, sources=sources)
+
+
+@router.get("/logs", response_model=List[ChatLogRead])
+def list_chat_logs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    logs = (
+        db.query(QALog)
+        .filter(QALog.user_id == current_user.id)
+        .order_by(QALog.created_at.asc())
+        .all()
+    )
+    return logs
+
+
+@router.delete("/logs", status_code=status.HTTP_204_NO_CONTENT)
+def delete_chat_logs(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db.query(QALog).filter(QALog.user_id == current_user.id).delete()
+    db.commit()

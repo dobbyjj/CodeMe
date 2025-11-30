@@ -1,7 +1,8 @@
 
 import { ChatMessage, QALog, DocumentEntity, DashboardStats } from '../types';
 
-const API_BASE_URL = "https://20.66.50.101:8000"; 
+// Cloud endpoints는 사용하지 않고 로컬 스토리지 전용으로 둔다.
+const API_BASE_URL = '';
 let CONNECTION_STATUS: 'connected' | 'disconnected' | 'config_error' = 'disconnected';
 
 const getUserId = () => {
@@ -17,29 +18,8 @@ const getUserId = () => {
 
 export const dbService = {
     initDB: async (): Promise<string> => {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); 
-            
-            console.log(`📡 Connecting to backend: ${API_BASE_URL}/health ...`);
-            const res = await fetch(`${API_BASE_URL}/health`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'ok') {
-                    console.log("✅ Server Connected (Single Container Mode)");
-                    CONNECTION_STATUS = 'connected';
-                    return 'connected';
-                } else {
-                    CONNECTION_STATUS = 'config_error';
-                    return 'config_error';
-                }
-            }
-        } catch (e: any) {
-            console.log("ℹ️ Switching to local storage mode.");
-            CONNECTION_STATUS = 'disconnected';
-        }
+        // Always use local storage; no external health check
+        CONNECTION_STATUS = 'disconnected';
         return CONNECTION_STATUS;
     },
 

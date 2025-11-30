@@ -3,12 +3,10 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Icons } from '../components/Icons';
 import { ChatMessage } from '../types';
 import { dbService } from '../services/dbService';
-import { chatService } from '../services/chatService';
+import { chatService, ChatLog } from '../services/chatService';
 import { apiClient } from '../services/api';
 import { Cloud, CloudOff } from 'lucide-react';
-
-const STORAGE_KEY = 'codeme_chat_history';
-const SESSION_KEY = 'codeme_current_session_id';
+import { useAuth } from '../context/AuthContext';
 
 // Separate component to prevent re-rendering issues
 interface SatisfactionSurveyProps {
@@ -102,7 +100,7 @@ const ChatPage: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   
   // Session State
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId] = useState<string>('');
 
   // Search & Filter State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -117,6 +115,7 @@ const ChatPage: React.FC = () => {
   
   // Connection state
   const [isConnected, setIsConnected] = useState(false);
+  const { user } = useAuth();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -124,43 +123,74 @@ const ChatPage: React.FC = () => {
 
   // Load from LocalStorage on Mount
   useEffect(() => {
-    // Check connection
-    dbService.initDB().then(status => setIsConnected(status === 'connected'));
-
-    // Initialize Session ID
-    let currentSession = localStorage.getItem(SESSION_KEY);
-    if (!currentSession) {
-        currentSession = Date.now().toString();
-        localStorage.setItem(SESSION_KEY, currentSession);
-    }
-    setSessionId(currentSession);
-
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-        try {
-            setMessages(JSON.parse(saved));
-        } catch (e) {
-            console.error("Failed to load chat history", e);
-        }
-    } else {
-        // Default Welcome Message
-        setMessages([{ 
-            id: 'init', 
-            role: 'model', 
-            text: '안녕하세요! 👋\n저는 Hey Me입니다. 당신의 개인 AI 에이전트입니다. 무엇을 도와드릴까요?', 
+    setIsConnected(false);
+    const loadLogs = async () => {
+      if (!user || !apiClient.token) {
+        setMessages([
+          {
+            id: 'init',
+            role: 'model',
+            text: '안녕하세요! 👋\n저는 Hey Me입니다. 당신의 개인 AI 에이전트입니다. 무엇을 도와드릴까요?',
             timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
             createdAt: new Date().toISOString(),
-            sessionId: currentSession
-        }]);
-    }
-  }, []);
-
-  // Save to LocalStorage on Change (Backup)
-  useEffect(() => {
-    if (messages.length > 0) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    }
-  }, [messages]);
+            sessionId: Date.now().toString(),
+          },
+        ]);
+        return;
+      }
+      try {
+        const logs: ChatLog[] = await chatService.listLogs();
+        if (logs.length === 0) {
+          setMessages([
+            {
+              id: 'init',
+              role: 'model',
+              text: '안녕하세요! 👋\n저는 Hey Me입니다. 당신의 개인 AI 에이전트입니다. 무엇을 도와드릴까요?',
+              timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+              createdAt: new Date().toISOString(),
+              sessionId: Date.now().toString(),
+            },
+          ]);
+          return;
+        }
+        const restored: ChatMessage[] = [];
+        logs.forEach(log => {
+          const ts = log.created_at
+            ? new Date(log.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+            : '';
+          restored.push({
+            id: `${log.id}-q`,
+            role: 'user',
+            text: log.question,
+            timestamp: ts,
+            createdAt: log.created_at || new Date().toISOString(),
+            sessionId: '',
+          });
+          restored.push({
+            id: `${log.id}-a`,
+            role: 'model',
+            text: log.answer,
+            timestamp: ts,
+            createdAt: log.created_at || new Date().toISOString(),
+            sessionId: '',
+          });
+        });
+        setMessages(restored);
+      } catch (e) {
+        setMessages([
+          {
+            id: 'init',
+            role: 'model',
+            text: '안녕하세요! 👋\n저는 Hey Me입니다. 당신의 개인 AI 에이전트입니다. 무엇을 도와드릴까요?',
+            timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+            createdAt: new Date().toISOString(),
+            sessionId: Date.now().toString(),
+          },
+        ]);
+      }
+    };
+    loadLogs();
+  }, [user]);
 
   // Intermittent Survey Trigger
   useEffect(() => {
@@ -270,28 +300,27 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  const clearHistory = (e: React.MouseEvent) => {
+  const clearHistory = async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
-      if (window.confirm("모든 대화 내용을 삭제하시겠습니까? 세션도 초기화됩니다.")) {
-          // Generate new Session ID
-          const newSessionId = Date.now().toString();
-          setSessionId(newSessionId);
-          localStorage.setItem(SESSION_KEY, newSessionId);
-
-          setMessages([{ 
-            id: Date.now().toString(), 
-            role: 'model', 
-            text: '대화 기록이 초기화되었습니다. 새로운 대화를 시작해보세요!', 
-            timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-            createdAt: new Date().toISOString(),
-            sessionId: newSessionId
-        }]);
-          localStorage.removeItem(STORAGE_KEY);
-          setSurveySubmitted(false);
-          setShowSurvey(false);
+      if (!window.confirm("모든 대화 내용을 삭제하시겠습니까?")) return;
+      // 서버 로그 삭제
+      try {
+        await chatService.clearLogs();
+      } catch (err) {
+        console.error(err);
       }
+      setMessages([{
+        id: Date.now().toString(),
+        role: 'model',
+        text: '대화 기록이 초기화되었습니다. 새로운 대화를 시작해보세요!',
+        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        createdAt: new Date().toISOString(),
+        sessionId: '',
+      }]);
+      setSurveySubmitted(false);
+      setShowSurvey(false);
   }
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {

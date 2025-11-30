@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import LandingPage from './pages/LandingPage';
@@ -44,7 +44,7 @@ const App: React.FC = () => {
 
   return (
     <AuthProvider>
-      <HashRouter>
+      <BrowserRouter>
         <ScrollToTop />
         <div className="min-h-screen flex flex-col font-sans text-gray-900">
             <Navbar onLoginClick={handleOpenLogin} />
@@ -78,9 +78,9 @@ const App: React.FC = () => {
               onClose={() => setIsLoginOpen(false)} 
               initialMode={authMode}
             />
-            <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
+                <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
         </div>
-      </HashRouter>
+      </BrowserRouter>
     </AuthProvider>
   );
 };
