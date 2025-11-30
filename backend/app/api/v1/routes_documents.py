@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import httpx
 from azure.storage.blob import ContainerClient
@@ -66,6 +66,49 @@ def delete_from_search_index(document: Document) -> None:
             resp2.raise_for_status()
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to delete search documents for %s: %s", document.id, exc)
+
+
+def update_search_group(document: Document, group_id: Optional[UUID]) -> None:
+    """Best-effort update of group_id for all indexed chunks of the document."""
+    if not settings.azure_search_endpoint or not settings.azure_search_admin_key or not settings.azure_search_index_name:
+        logger.warning("Azure Search config missing, skipping index update for %s", document.id)
+        return
+
+    search_url = (
+        f"{settings.azure_search_endpoint}/indexes/{settings.azure_search_index_name}"
+        "/docs/search?api-version=2023-11-01"
+    )
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": settings.azure_search_admin_key,
+    }
+    filter_expr = f"document_id eq '{document.id}'"
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(search_url, headers=headers, json={"filter": filter_expr, "select": "id", "top": 1000})
+            resp.raise_for_status()
+            data = resp.json()
+            ids = [doc.get("id") for doc in data.get("value", []) if doc.get("id")]
+            if not ids:
+                return
+            update_url = (
+                f"{settings.azure_search_endpoint}/indexes/{settings.azure_search_index_name}"
+                "/docs/index?api-version=2023-11-01"
+            )
+            payload = {
+                "value": [
+                    {
+                        "@search.action": "merge",
+                        "id": doc_id,
+                        "group_id": str(group_id) if group_id else None,
+                    }
+                    for doc_id in ids
+                ]
+            }
+            resp2 = client.post(update_url, headers=headers, json=payload)
+            resp2.raise_for_status()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to update search group for %s: %s", document.id, exc)
 
 
 def delete_document_internal(db: Session, current_user: User, document: Document, container: ContainerClient) -> None:
@@ -216,6 +259,9 @@ def move_document_group(
     doc.group_id = payload.group_id
     db.commit()
     db.refresh(doc)
+
+    # 인덱싱된 문서의 group_id도 업데이트 (best-effort)
+    update_search_group(doc, payload.group_id)
     return doc
 
 
