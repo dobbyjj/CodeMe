@@ -70,7 +70,8 @@ CREATE INDEX idx_documents_group_id
 CREATE TABLE links (
     id               VARCHAR(64) PRIMARY KEY,
     user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    document_id      UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    document_id      UUID REFERENCES documents(id) ON DELETE CASCADE,
+    group_id         UUID REFERENCES document_groups(id) ON DELETE SET NULL,
     title            VARCHAR(255),
     is_active        BOOLEAN NOT NULL DEFAULT TRUE,
     expires_at       TIMESTAMPTZ,

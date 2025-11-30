@@ -116,11 +116,24 @@ export interface Contact {
 
 export enum PageRoute {
   HOME = '/',
-  CHAT = '/chat',
+  AGENT = '/agent',
+  CHAT = '/agent', // backward compat
+  SHARE_CHAT = '/share-chat',
   DASHBOARD = '/dashboard',
   UPLOAD = '/upload',
   PRICING = '/pricing',
   SETTINGS = '/settings'
+}
+
+export interface Link {
+  id: string;
+  user_id: string;
+  document_id?: string | null;
+  group_id?: string | null;
+  title?: string | null;
+  is_active: boolean;
+  expires_at?: string | null;
+  created_at?: string;
 }
 
 declare global {

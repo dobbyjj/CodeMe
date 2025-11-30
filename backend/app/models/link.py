@@ -18,7 +18,8 @@ class Link(Base):
 
     id = Column(String(64), primary_key=True)  # 임의의 짧은 문자열
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=True)
+    group_id = Column(UUID(as_uuid=True), ForeignKey("document_groups.id", ondelete="SET NULL"), nullable=True)
 
     title = Column(String(255), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)

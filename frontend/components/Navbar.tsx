@@ -44,7 +44,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick }) => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <NavItem path={PageRoute.CHAT} label="챗봇" />
+            <NavItem path={PageRoute.AGENT} label="에이전트" />
+            <NavItem path={PageRoute.SHARE_CHAT} label="공유 챗봇" />
             <NavItem path={PageRoute.DASHBOARD} label="대시보드" />
             <NavItem path={PageRoute.UPLOAD} label="업로드" />
           </div>

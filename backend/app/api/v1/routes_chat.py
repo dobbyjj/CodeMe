@@ -37,8 +37,8 @@ async def ask_via_link(
     search_result = await vector_search(
         query_vector=query_vec,
         user_id=link.user_id,
-        group_id=None,
-        document_id=link.document_id,
+        group_id=link.group_id,
+        document_id=link.document_id if not link.group_id else None,
         top_k=5,
     )
 
