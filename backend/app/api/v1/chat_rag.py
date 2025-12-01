@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 from uuid import UUID
 
@@ -24,6 +25,7 @@ from sqlalchemy.orm import Session
 import re
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
+logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
@@ -157,30 +159,51 @@ async def chat_with_rag(
     db: Session = Depends(get_db),
 ):
     """RAG chat: embed query, vector search, call chat model."""
-    query_vec = await embed_query(payload.question)
+    search_result: VectorSearchResponse | None = None
+    answer = "죄송합니다. 답변을 생성하는 중 오류가 발생했습니다."
+    status_str = "ERROR"
+    persona_prompt: str | None = None
+    primary_document_id: str | None = None
 
-    search_result: VectorSearchResponse = await vector_search(
-        query_vector=query_vec,
-        user_id=current_user.id,
-        group_id=payload.group_id,
-        document_id=None,
-        top_k=payload.top_k,
-    )
+    try:
+        query_vec = await embed_query(payload.question)
 
-    persona_prompt = None
-    if payload.group_id:
-        group = db.get(DocumentGroup, payload.group_id)
-        if not group or group.user_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
-        persona_prompt = group.persona_prompt
+        search_result = await vector_search(
+            query_vector=query_vec,
+            user_id=current_user.id,
+            group_id=payload.group_id,
+            document_id=None,
+            top_k=payload.top_k,
+        )
 
-    status_str = "SUCCESS"
-    if len(search_result.hits) == 0:
-        status_str = "NO_ANSWER"
+        if payload.group_id:
+            group = db.get(DocumentGroup, payload.group_id)
+            if not group or group.user_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+            persona_prompt = group.persona_prompt
 
-    answer = await call_chat_model(payload.question, search_result.hits, persona_prompt)
-    if status_str == "SUCCESS" and _looks_no_answer(answer):
-        status_str = "NO_ANSWER"
+        if search_result.hits:
+            status_str = "SUCCESS"
+            primary_document_id = search_result.hits[0].document_id
+        else:
+            status_str = "NO_ANSWER"
+
+        answer = await call_chat_model(payload.question, search_result.hits, persona_prompt)
+        if status_str == "SUCCESS" and _looks_no_answer(answer):
+            status_str = "NO_ANSWER"
+    except HTTPException:
+        # FastAPI HTTPException 그대로 전달
+        raise
+    except Exception as e:
+        logger.exception("chat_with_rag: 검색/LLM 처리 중 예외 발생", exc_info=e)
+        answer = "죄송합니다. 답변을 생성하는 중 오류가 발생했습니다."
+        status_str = "ERROR"
+
+    try:
+        normalized = await normalize_question_semantic(payload.question)
+    except Exception as e:
+        logger.exception("chat_with_rag: normalize_question_semantic 예외 발생", exc_info=e)
+        normalized = None
 
     sources: List[ChatSource] = [
         ChatSource(
@@ -190,15 +213,14 @@ async def chat_with_rag(
             chunk_id=h.chunk_id,
             score=h.score,
         )
-        for h in search_result.hits
+        for h in (search_result.hits if search_result else [])
     ]
 
     # QA 로그 저장 (best-effort)
     try:
-        normalized = await normalize_question_semantic(payload.question)
         qa_log = QALog(
             user_id=current_user.id,
-            document_id=None,
+            document_id=primary_document_id,
             link_id=None,
             question=payload.question,
             answer=answer,
@@ -207,8 +229,12 @@ async def chat_with_rag(
         )
         db.add(qa_log)
         db.commit()
-    except Exception:
-        db.rollback()
+    except Exception as e:
+        logger.exception("chat_with_rag: qa_log 저장 중 예외 발생 - rollback 수행", exc_info=e)
+        try:
+            db.rollback()
+        except Exception as rollback_err:
+            logger.exception("chat_with_rag: rollback 실패", exc_info=rollback_err)
 
     return ChatResponse(question=payload.question, answer=answer, sources=sources)
 
@@ -221,6 +247,7 @@ def list_chat_logs(
     logs = (
         db.query(QALog)
         .filter(QALog.user_id == current_user.id)
+        .filter(QALog.link_id.is_(None))
         .order_by(QALog.created_at.asc())
         .all()
     )
@@ -232,5 +259,8 @@ def delete_chat_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    db.query(QALog).filter(QALog.user_id == current_user.id).delete()
+    db.query(QALog).filter(
+        QALog.user_id == current_user.id,
+        QALog.link_id.is_(None),
+    ).delete()
     db.commit()
