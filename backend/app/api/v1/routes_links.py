@@ -12,6 +12,7 @@ from app.models.document_group import DocumentGroup
 from app.models.link import Link
 from app.models.user import User
 from app.schemas.link import LinkCreate, LinkRead
+from datetime import timezone
 
 router = APIRouter(prefix="/links", tags=["links"])
 
@@ -99,3 +100,41 @@ def list_my_links(
 ):
     links = db.query(Link).filter(Link.user_id == current_user.id).all()
     return links
+
+
+@router.get("/{link_id}/info")
+def link_info(
+    link_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    공개 링크 메타 정보 제공 (인증 없이 사용)
+    """
+    link = db.get(Link, link_id)
+    if not link:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Link not found")
+
+    now = datetime.utcnow().replace(tzinfo=None)
+    is_expired = link.expires_at and link.expires_at.replace(tzinfo=None) <= now
+    if not link.is_active or is_expired:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Link expired")
+
+    owner = db.get(User, link.user_id)
+    folder_name = None
+    title = None
+
+    if link.group_id:
+        group = db.get(DocumentGroup, link.group_id)
+        folder_name = group.name if group else None
+    if link.document_id:
+        doc = db.get(Document, link.document_id)
+        if doc:
+            title = doc.title or doc.original_file_name
+
+    return {
+        "link_id": link.id,
+        "user_name": owner.name if owner else "",
+        "folder_name": folder_name,
+        "title": title,
+        "is_active": True,
+    }

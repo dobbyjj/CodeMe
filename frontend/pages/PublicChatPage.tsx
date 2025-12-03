@@ -35,6 +35,7 @@ const PublicChatPage: React.FC = () => {
       try {
         const info = await getLinkInfo(linkId);
         setLinkInfo(info);
+        setError(null);
         
         // 안내 메시지
         setMessages([
@@ -46,7 +47,8 @@ const PublicChatPage: React.FC = () => {
           },
         ]);
       } catch (e: any) {
-        setError('링크가 존재하지 않거나 만료되었습니다.');
+        // 링크 정보 조회가 실패해도 채팅이 동작할 수 있으므로 배너는 띄우지 않는다.
+        setError(null);
       } finally {
         setIsLoadingInfo(false);
       }
@@ -129,7 +131,7 @@ const PublicChatPage: React.FC = () => {
           </button>
         </div>
 
-        {error && (
+        {error && !linkInfo && (
           <div className="bg-red-50 text-red-700 border border-red-200 px-4 py-3 text-sm">
             {error}{' '}
             <button
