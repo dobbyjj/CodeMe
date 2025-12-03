@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { dashboardService } from '../services/dashboardService';
 import type {
   DashboardOverview,
@@ -22,6 +22,7 @@ const DashboardPage: React.FC = () => {
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,11 +38,51 @@ const DashboardPage: React.FC = () => {
     fetchData();
   }, []);
 
+  const aggregatedCounts = useMemo(() => {
+    if (!data) return [];
+    const parsed = data.daily_counts
+      .map((d) => ({ date: new Date(d.date), count: d.count }))
+      .filter((d) => !isNaN(d.date.getTime()));
+
+    if (timeframe === 'daily') {
+      return parsed
+        .map((d) => ({
+          label: d.date.toISOString().slice(0, 10),
+          count: d.count,
+        }))
+        .sort((a, b) => (a.label < b.label ? -1 : 1));
+    }
+
+    const formatter = (d: Date) => {
+      if (timeframe === 'weekly') {
+        const onejan = new Date(d.getFullYear(), 0, 1);
+        const week = Math.ceil(((d.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7);
+        return `${d.getFullYear()}-W${week.toString().padStart(2, '0')}`;
+      }
+      if (timeframe === 'monthly') {
+        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+      }
+      return `${d.getFullYear()}`;
+    };
+
+    const grouped: Record<string, number> = {};
+    parsed.forEach(({ date, count }) => {
+      const key = formatter(date);
+      grouped[key] = (grouped[key] ?? 0) + count;
+    });
+
+    return Object.entries(grouped)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => (a.label < b.label ? -1 : 1));
+  }, [data, timeframe]);
+
+  const totalConversations = useMemo(() => {
+    if (!data) return 0;
+    return data.daily_counts.reduce((sum, item) => sum + item.count, 0);
+  }, [data]);
+
   if (loading) return <div className="p-6 text-gray-400">로딩 중...</div>;
   if (error || !data) return <div className="p-6 text-red-400">{error ?? '데이터가 없습니다.'}</div>;
-
-  // 총 대화수 계산
-  const totalConversations = data.daily_counts.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div className="p-6 flex flex-col items-center bg-[#0f0a1a]" style={{ paddingBottom: '60px', paddingTop: '8px' }}>
@@ -55,10 +96,24 @@ const DashboardPage: React.FC = () => {
           <span className="font-semibold text-white">{totalConversations.toLocaleString()}</span>
         </div>
         <div className="flex items-center gap-4">
-          <button className="text-sm text-purple-200 hover:bg-white/10 px-3 py-1 rounded transition-colors hover:text-white">일간</button>
-          <button className="text-sm text-purple-200 hover:bg-white/10 px-3 py-1 rounded transition-colors hover:text-white">주간</button>
-          <button className="text-sm text-purple-200 hover:bg-white/10 px-3 py-1 rounded transition-colors hover:text-white">월간</button>
-          <button className="text-sm text-purple-200 hover:bg-white/10 px-3 py-1 rounded transition-colors hover:text-white">연간</button>
+          {[
+            { key: 'daily', label: '일간' },
+            { key: 'weekly', label: '주간' },
+            { key: 'monthly', label: '월간' },
+            { key: 'yearly', label: '연간' },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => setTimeframe(item.key as typeof timeframe)}
+              className={`text-sm px-3 py-1 rounded transition-colors ${
+                timeframe === item.key
+                  ? 'bg-purple-600 text-white border border-purple-300'
+                  : 'text-purple-200 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -89,9 +144,9 @@ const DashboardPage: React.FC = () => {
             </div>
             <div style={{ height: 'calc(164px - 80px)' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.daily_counts}>
+                <LineChart data={aggregatedCounts}>
                   <CartesianGrid stroke="rgba(167,139,250,0.1)" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#c4b5fd' }} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#c4b5fd' }} />
                   <YAxis tick={{ fontSize: 10, fill: '#c4b5fd' }} />
                   <Tooltip />
                   <Line type="monotone" dataKey="count" stroke="#a78bfa" strokeWidth={2} dot={false} />
