@@ -50,3 +50,6 @@ DB/data/
 
 # n8n 같은 외부 도구 로컬 데이터(있다면)
 n8n_data/
+# 프론트엔드 빌드 결과물 무시
+frontend/dist
+backend/app/static
