@@ -26,7 +26,7 @@ jobs:
       - name: Install and Build Frontend
         run: |
           cd frontend
-          npm install --include=dev
+          npm ci
           npm run build
           # 👇 [디버깅용] 빌드가 잘 됐는지 파일 목록 확인
           echo "Build finished. Checking dist folder..."
