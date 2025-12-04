@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
-import { uploadService } from '../services/uploadService';
+import React, { useState, useEffect, useRef } from 'react';
 import { documentService } from '../services/documentService';
 import { apiClient } from '../services/api';
-import type { UploadedFile, Document, DocumentGroup, DocumentStatus } from '../types';
+import type { Document, DocumentGroup, DocumentStatus } from '../types';
 import { Icons } from '../components/Icons';
 import { HeyMeLogo } from '../components/HeyMeLogo';
 import {
@@ -246,9 +245,7 @@ const UploadPage: React.FC = () => {
             <p className="text-purple-300/60 text-sm mb-4">
               PDF, TXT, MD 등 텍스트 기반 파일을 지원합니다.
             </p>
-            <p className="text-xs text-purple-300/40 mb-6">
-              JWT 토큰은 <code className="bg-purple-900/30 px-1.5 py-0.5 rounded">localStorage.codeme_jwt</code> 값이 사용됩니다.
-            </p>
+            <div className="mb-6" />
             <div className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium shadow-lg shadow-purple-900/50 pointer-events-none hover:bg-purple-500 transition-colors">
               {uploading ? '업로드 중...' : '파일 선택'}
             </div>

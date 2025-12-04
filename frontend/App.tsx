@@ -49,6 +49,13 @@ const App: React.FC = () => {
     setIsLoginOpen(true);
   };
 
+  // ProtectedRoute에서 전역 이벤트로 로그인 모달 열기 요청을 받을 수 있게 함
+  React.useEffect(() => {
+    const openLogin = () => handleOpenLogin();
+    window.addEventListener('codeme-open-login', openLogin);
+    return () => window.removeEventListener('codeme-open-login', openLogin);
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>

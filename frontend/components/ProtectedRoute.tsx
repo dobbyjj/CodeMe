@@ -33,7 +33,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
             <div className="w-full space-y-3">
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={() => {
+                  // App.tsx에서 수신하는 전역 이벤트로 로그인 모달을 연다
+                  window.dispatchEvent(new Event('codeme-open-login'));
+                }}
                 className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
               >
                 로그인 페이지로 이동

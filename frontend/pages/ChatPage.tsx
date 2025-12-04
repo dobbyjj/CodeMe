@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Icons } from '../components/Icons';
-import { ChatService } from '../services/chatService';
-import { Message, ChatLog } from '../types';
+import type { ChatLog } from '../services/chatService';
+import { ChatMessage } from '../types';
 import { HeyMeLogo } from '../components/HeyMeLogo';
 import { CodeMeLogo } from '../components/CodeMeLogo';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,8 @@ import { chatService } from '../services/chatService';
 import { apiClient } from '../services/api';
 import { dbService } from '../services/dbService';
 import { Cloud, CloudOff } from 'lucide-react';
+
+type Message = ChatMessage;
 
 // Separate component to prevent re-rendering issues
 interface SatisfactionSurveyProps {
